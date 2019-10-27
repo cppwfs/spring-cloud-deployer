@@ -31,6 +31,9 @@ import org.springframework.core.io.Resource;
  */
 public interface Scheduler {
 
+	final static String SCHEDULER_PREFIX = "spring.cloud.scheduler.";
+	final static String SCHEDULER_ALTERNATE_TASK_NAME = SCHEDULER_PREFIX + "alternate-task-name";
+
 	/**
 	 * Registers the {@link ScheduleRequest} to be executed based on the
 	 * cron expression provided.  If an error occurs during schedule creation
