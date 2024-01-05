@@ -1661,166 +1661,166 @@ public class KubernetesAppDeployerIntegrationIT extends AbstractAppDeployerInteg
                 .untilAsserted(() -> assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.unknown));
     }
 
-	@Nested
-	class SecurityContextITs {
+    @Nested
+    class SecurityContextITs {
 
-		@Test
-		void podWithInitContainerAndAdditionalContainers() {
+        @Test
+        void podWithInitContainerAndAdditionalContainers() {
 
-			Map<String, String> deploymentProps = new HashMap<>();
-			deploymentProps.put("spring.cloud.deployer.kubernetes.initContainer",
-					"{ containerName: 'init-container-5150', imageName: 'busybox:latest', commands: ['sh', '-c', 'echo hello']}");
-			deploymentProps.put("spring.cloud.deployer.kubernetes.additional-containers",
-					"[" +
-						"{ name: 'extra-container-5150', image: 'busybox:latest', command: ['sh', '-c'], args: [\"while true; do echo ‘hello 5150’ & sleep 2; done\"]}," +
-						"{ name: 'extra-container-6160', image: 'busybox:latest', command: ['sh', '-c'], args: [\"while true; do echo ‘hello 6160’ & sleep 2; done\"]}" +
-					"]");
-			deploymentProps.put("spring.cloud.deployer.kubernetes.podSecurityContext",
-					"{ fsGroup: 65534" +
-						", fsGroupChangePolicy: Always" +
-						", runAsUser: 65534" +
-						", runAsGroup: 65534" +
-						", seLinuxOptions: { level: \"s0:c123,c456\" }" +
-					"}");
-			deploymentProps.put("spring.cloud.deployer.kubernetes.containerSecurityContext",
-					"{ allowPrivilegeEscalation: true" +
-						", runAsUser: 65534" +
-						", runAsGroup: 65534" +
-						", seLinuxOptions: { level: \"s0:c123,c777\" }" +
-					"}");
+            Map<String, String> deploymentProps = new HashMap<>();
+            deploymentProps.put("spring.cloud.deployer.kubernetes.initContainer",
+                    "{ containerName: 'init-container-5150', imageName: 'busybox:latest', commands: ['sh', '-c', 'echo hello']}");
+            deploymentProps.put("spring.cloud.deployer.kubernetes.additional-containers",
+                    "[" +
+                            "{ name: 'extra-container-5150', image: 'busybox:latest', command: ['sh', '-c'], args: [\"while true; do echo ‘hello 5150’ & sleep 2; done\"]}," +
+                            "{ name: 'extra-container-6160', image: 'busybox:latest', command: ['sh', '-c'], args: [\"while true; do echo ‘hello 5150’ & sleep 2; done\"]}" +
+                            "]");
+            deploymentProps.put("spring.cloud.deployer.kubernetes.podSecurityContext",
+                    "{ fsGroup: 65534" +
+                            ", fsGroupChangePolicy: Always" +
+                            ", runAsUser: 65534" +
+                            ", runAsGroup: 65534" +
+                            ", seLinuxOptions: { level: \"s0:c123,c456\" }" +
+                            "}");
+            deploymentProps.put("spring.cloud.deployer.kubernetes.containerSecurityContext",
+                    "{ allowPrivilegeEscalation: true" +
+                            ", runAsUser: 65534" +
+                            ", runAsGroup: 65534" +
+                            ", seLinuxOptions: { level: \"s0:c123,c777\" }" +
+                            "}");
 
-			AppDefinition definition = new AppDefinition(randomName(), null);
-			AppDeploymentRequest request = new AppDeploymentRequest(definition, testApplication(), deploymentProps);
+            AppDefinition definition = new AppDefinition(randomName(), null);
+            AppDeploymentRequest request = new AppDeploymentRequest(definition, testApplication(), deploymentProps);
 
-			KubernetesDeployerProperties deployProperties = new KubernetesDeployerProperties();
-			deployProperties.setCreateLoadBalancer(true);
-			deployProperties.setMinutesToWaitForLoadBalancer(1);
-			KubernetesAppDeployer kubernetesAppDeployer = kubernetesAppDeployer(deployProperties);
+            KubernetesDeployerProperties deployProperties = new KubernetesDeployerProperties();
+            deployProperties.setCreateLoadBalancer(true);
+            deployProperties.setMinutesToWaitForLoadBalancer(1);
+            KubernetesAppDeployer kubernetesAppDeployer = kubernetesAppDeployer(deployProperties);
 
-			log.info("Deploying {}...", request.getDefinition().getName());
-			String deploymentId = kubernetesAppDeployer.deploy(request);
+            log.info("Deploying {}...", request.getDefinition().getName());
+            String deploymentId = kubernetesAppDeployer.deploy(request);
 
-			Timeout timeout = deploymentTimeout();
-			await().pollInterval(Duration.ofMillis(timeout.pause))
-					.atMost(Duration.ofMillis(timeout.totalTime))
-					.untilAsserted(() -> assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.deployed));
+            Timeout timeout = deploymentTimeout();
+            await().pollInterval(Duration.ofMillis(timeout.pause))
+                    .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                    .untilAsserted(() -> assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.deployed));
 
-			PodSecurityContext expectedPodSecurityContext = new PodSecurityContextBuilder()
-					.withFsGroup(65534L)
-					.withFsGroupChangePolicy("Always")
-					.withRunAsUser(65534L)
-					.withRunAsGroup(65534L)
-					.withSeLinuxOptions(new SELinuxOptions("s0:c123,c456", null, null, null))
-					.build();
+            PodSecurityContext expectedPodSecurityContext = new PodSecurityContextBuilder()
+                    .withFsGroup(65534L)
+                    .withFsGroupChangePolicy("Always")
+                    .withRunAsUser(65534L)
+                    .withRunAsGroup(65534L)
+                    .withSeLinuxOptions(new SELinuxOptions("s0:c123,c456", null, null, null))
+                    .build();
 
-			SecurityContext expectedContainerSecurityContext = new SecurityContextBuilder()
-					.withAllowPrivilegeEscalation(true)
-					.withRunAsUser(65534L)
-					.withRunAsGroup(65534L)
-					.withSeLinuxOptions(new SELinuxOptions("s0:c123,c777", null, null, null))
-					.build();
+            SecurityContext expectedContainerSecurityContext = new SecurityContextBuilder()
+                    .withAllowPrivilegeEscalation(true)
+                    .withRunAsUser(65534L)
+                    .withRunAsGroup(65534L)
+                    .withSeLinuxOptions(new SELinuxOptions("s0:c123,c777", null, null, null))
+                    .build();
 
-			Deployment deployment = kubernetesClient.apps().deployments().withName(request.getDefinition().getName()).get();
+            Deployment deployment = kubernetesClient.apps().deployments().withName(request.getDefinition().getName()).get();
 
-			assertThat(deployment.getSpec().getTemplate().getSpec().getSecurityContext())
-					.isEqualTo(expectedPodSecurityContext);
+            assertThat(deployment.getSpec().getTemplate().getSpec().getSecurityContext())
+                    .isEqualTo(expectedPodSecurityContext);
 
-			assertThatContainerExistsWithSecurityContext(deployment.getSpec().getTemplate().getSpec().getInitContainers(),
-					"init-container-5150", expectedContainerSecurityContext);
+            assertThatContainerExistsWithSecurityContext(deployment.getSpec().getTemplate().getSpec().getInitContainers(),
+                    "init-container-5150", expectedContainerSecurityContext);
 
-			assertThatContainerExistsWithSecurityContext(deployment.getSpec().getTemplate().getSpec().getContainers(),
-					"extra-container-5150", expectedContainerSecurityContext);
+            assertThatContainerExistsWithSecurityContext(deployment.getSpec().getTemplate().getSpec().getContainers(),
+                    "extra-container-5150", expectedContainerSecurityContext);
 
-			assertThatContainerExistsWithSecurityContext(deployment.getSpec().getTemplate().getSpec().getContainers(),
-					"extra-container-6160", expectedContainerSecurityContext);
+            assertThatContainerExistsWithSecurityContext(deployment.getSpec().getTemplate().getSpec().getContainers(),
+                    "extra-container-6160", expectedContainerSecurityContext);
 
-			log.info("Undeploying {}...", deploymentId);
-			timeout = undeploymentTimeout();
-			kubernetesAppDeployer.undeploy(deploymentId);
-			await().pollInterval(Duration.ofMillis(timeout.pause))
-					.atMost(Duration.ofMillis(timeout.totalTime))
-					.untilAsserted(() -> assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.unknown));
-		}
+            log.info("Undeploying {}...", deploymentId);
+            timeout = undeploymentTimeout();
+            kubernetesAppDeployer.undeploy(deploymentId);
+            await().pollInterval(Duration.ofMillis(timeout.pause))
+                    .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                    .untilAsserted(() -> assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.unknown));
+        }
 
-		@Test
-		void statefulSetWithInitContainerAndAdditionalContainers() throws IOException {
+        @Test
+        void statefulSetWithInitContainerAndAdditionalContainers() throws IOException {
 
-			Map<String, String> deploymentProps = new HashMap<>();
-			deploymentProps.put(AppDeployer.COUNT_PROPERTY_KEY, "2");
-			deploymentProps.put(AppDeployer.INDEXED_PROPERTY_KEY, "true");
-			deploymentProps.put("spring.cloud.deployer.kubernetes.podSecurityContext",
-					"{ fsGroup: 65534" +
-							", fsGroupChangePolicy: Always" +
-							", runAsUser: 65534" +
-							", runAsGroup: 65534" +
-							", seLinuxOptions: { level: \"s0:c123,c456\" }" +
-							"}");
-			deploymentProps.put("spring.cloud.deployer.kubernetes.containerSecurityContext",
-					"{ allowPrivilegeEscalation: true" +
-							", runAsUser: 65534" +
-							", runAsGroup: 65534" +
-							", seLinuxOptions: { level: \"s0:c123,c777\" }" +
-							"}");
+            Map<String, String> deploymentProps = new HashMap<>();
+            deploymentProps.put(AppDeployer.COUNT_PROPERTY_KEY, "2");
+            deploymentProps.put(AppDeployer.INDEXED_PROPERTY_KEY, "true");
+            deploymentProps.put("spring.cloud.deployer.kubernetes.podSecurityContext",
+                    "{ fsGroup: 65534" +
+                            ", fsGroupChangePolicy: Always" +
+                            ", runAsUser: 65534" +
+                            ", runAsGroup: 65534" +
+                            ", seLinuxOptions: { level: \"s0:c123,c456\" }" +
+                            "}");
+            deploymentProps.put("spring.cloud.deployer.kubernetes.containerSecurityContext",
+                    "{ allowPrivilegeEscalation: true" +
+                            ", runAsUser: 65534" +
+                            ", runAsGroup: 65534" +
+                            ", seLinuxOptions: { level: \"s0:c123,c777\" }" +
+                            "}");
 
-			AppDefinition definition = new AppDefinition(randomName(), null);
-			AppDeploymentRequest request = new AppDeploymentRequest(definition, testApplication(), deploymentProps);
+            AppDefinition definition = new AppDefinition(randomName(), null);
+            AppDeploymentRequest request = new AppDeploymentRequest(definition, testApplication(), deploymentProps);
 
-			String imageName = testApplication().getURI().getSchemeSpecificPart();
-			KubernetesDeployerProperties kubernetesDeployerProperties = new KubernetesDeployerProperties();
-			kubernetesDeployerProperties.setStatefulSetInitContainerImageName(imageName);
-			KubernetesAppDeployer kubernetesAppDeployer = kubernetesAppDeployer(kubernetesDeployerProperties);
+            String imageName = testApplication().getURI().getSchemeSpecificPart();
+            KubernetesDeployerProperties kubernetesDeployerProperties = new KubernetesDeployerProperties();
+            kubernetesDeployerProperties.setStatefulSetInitContainerImageName(imageName);
+            KubernetesAppDeployer kubernetesAppDeployer = kubernetesAppDeployer(kubernetesDeployerProperties);
 
-			log.info("Deploying {}...", request.getDefinition().getName());
-			String deploymentId = kubernetesAppDeployer.deploy(request);
+            log.info("Deploying {}...", request.getDefinition().getName());
+            String deploymentId = kubernetesAppDeployer.deploy(request);
 
-			Timeout timeout = deploymentTimeout();
-			await().pollInterval(Duration.ofMillis(timeout.pause))
-					.atMost(Duration.ofMillis(timeout.totalTime))
-					.untilAsserted(() -> assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.deployed));
+            Timeout timeout = deploymentTimeout();
+            await().pollInterval(Duration.ofMillis(timeout.pause))
+                    .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                    .untilAsserted(() -> assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.deployed));
 
-			PodSecurityContext expectedPodSecurityContext = new PodSecurityContextBuilder()
-					.withFsGroup(65534L)
-					.withFsGroupChangePolicy("Always")
-					.withRunAsUser(65534L)
-					.withRunAsGroup(65534L)
-					.withSeLinuxOptions(new SELinuxOptions("s0:c123,c456", null, null, null))
-					.build();
+            PodSecurityContext expectedPodSecurityContext = new PodSecurityContextBuilder()
+                    .withFsGroup(65534L)
+                    .withFsGroupChangePolicy("Always")
+                    .withRunAsUser(65534L)
+                    .withRunAsGroup(65534L)
+                    .withSeLinuxOptions(new SELinuxOptions("s0:c123,c456", null, null, null))
+                    .build();
 
-			SecurityContext expectedContainerSecurityContext = new SecurityContextBuilder()
-					.withAllowPrivilegeEscalation(true)
-					.withRunAsUser(65534L)
-					.withRunAsGroup(65534L)
-					.withSeLinuxOptions(new SELinuxOptions("s0:c123,c777", null, null, null))
-					.build();
+            SecurityContext expectedContainerSecurityContext = new SecurityContextBuilder()
+                    .withAllowPrivilegeEscalation(true)
+                    .withRunAsUser(65534L)
+                    .withRunAsGroup(65534L)
+                    .withSeLinuxOptions(new SELinuxOptions("s0:c123,c777", null, null, null))
+                    .build();
 
-			Map<String, String> selector = Collections.singletonMap(AbstractKubernetesDeployer.SPRING_APP_KEY, deploymentId);
-			List<StatefulSet> statefulSets = kubernetesClient.apps().statefulSets().withLabels(selector).list().getItems();
-			assertThat(statefulSets).hasSize(1)
-					.element(0, InstanceOfAssertFactories.type(StatefulSet.class))
-					.extracting("spec.template.spec", InstanceOfAssertFactories.type(PodSpec.class))
-					.satisfies((podSpec) -> {
-						assertThat(podSpec.getSecurityContext()).isEqualTo(expectedPodSecurityContext);
-						assertThat(podSpec.getInitContainers())
-								.hasSize(1)
-								.element(0, InstanceOfAssertFactories.type(Container.class))
-								.extracting(Container::getSecurityContext).isEqualTo(expectedContainerSecurityContext);
-					});
+            Map<String, String> selector = Collections.singletonMap(AbstractKubernetesDeployer.SPRING_APP_KEY, deploymentId);
+            List<StatefulSet> statefulSets = kubernetesClient.apps().statefulSets().withLabels(selector).list().getItems();
+            assertThat(statefulSets).hasSize(1)
+                    .element(0, InstanceOfAssertFactories.type(StatefulSet.class))
+                    .extracting("spec.template.spec", InstanceOfAssertFactories.type(PodSpec.class))
+                    .satisfies((podSpec) -> {
+                        assertThat(podSpec.getSecurityContext()).isEqualTo(expectedPodSecurityContext);
+                        assertThat(podSpec.getInitContainers())
+                                .hasSize(1)
+                                .element(0, InstanceOfAssertFactories.type(Container.class))
+                                .extracting(Container::getSecurityContext).isEqualTo(expectedContainerSecurityContext);
+                    });
 
-			log.info("Undeploying {}...", deploymentId);
-			timeout = undeploymentTimeout();
-			kubernetesAppDeployer.undeploy(deploymentId);
-			await().pollInterval(Duration.ofMillis(timeout.pause))
-					.atMost(Duration.ofMillis(timeout.totalTime))
-					.untilAsserted(() -> assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.unknown));
-		}
+            log.info("Undeploying {}...", deploymentId);
+            timeout = undeploymentTimeout();
+            kubernetesAppDeployer.undeploy(deploymentId);
+            await().pollInterval(Duration.ofMillis(timeout.pause))
+                    .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                    .untilAsserted(() -> assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.unknown));
+        }
 
-	}
+    }
 
-	private void assertThatContainerExistsWithSecurityContext(List<Container> containers, String expectedName, SecurityContext expectedSecurityContext) {
-		assertThat(containers
-				.stream().filter(c -> c.getName().equals(expectedName)).findFirst())
-				.hasValueSatisfying((initContainer) -> assertThat(initContainer.getSecurityContext()).isEqualTo(expectedSecurityContext));
-	}
+    private void assertThatContainerExistsWithSecurityContext(List<Container> containers, String expectedName, SecurityContext expectedSecurityContext) {
+        assertThat(containers
+                .stream().filter(c -> c.getName().equals(expectedName)).findFirst())
+                .hasValueSatisfying((initContainer) -> assertThat(initContainer.getSecurityContext()).isEqualTo(expectedSecurityContext));
+    }
 
     @Test
     public void testUnknownStatusOnPendingResources() throws InterruptedException {
