@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -246,10 +247,25 @@ public class KubernetesTaskLauncher extends AbstractKubernetesDeployer implement
 		if (!CollectionUtils.isEmpty(deploymentLabels)) {
 			logger.debug(String.format("Adding deploymentLabels: %s", deploymentLabels));
 		}
+		deploymentLabels.forEach(new BiConsumer<String, String>() {
+			@Override
+			public void accept(String s, String s2) {
+				System.out.println(">>>>>>>" + s + ">>>>>" + s2);
+			}
+		});
 		PodSpec podSpec = createPodSpec(request);
+		System.out.println("********* IS CREATE JOB = " + this.properties.isCreateJob());
+		Boolean isDeploymentJob = null;
+		if(deploymentLabels.containsKey("spring.cloud.deployer.kubernetes.create-job")) {
+			isDeploymentJob = Boolean.valueOf(
+					deploymentLabels.get("spring.cloud.deployer.kubernetes.create-job"));
+		}
+		System.out.println("IS JOB IS ==>" + isDeploymentJob);
 
 		podSpec.setRestartPolicy(getRestartPolicy(request).name());
-		if (this.properties.isCreateJob()) {
+		System.out.println("********* IS CREATE JOB = " + this.properties.isCreateJob());
+		if ((isDeploymentJob != null && isDeploymentJob) ||
+				(isDeploymentJob == null && this.properties.isCreateJob())) {
 			logger.debug(String.format("Launching Job for task: %s", appId));
 			ObjectMeta objectMeta = new ObjectMetaBuilder()
 					.withLabels(podLabelMap)
