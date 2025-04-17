@@ -59,6 +59,8 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.fabric8.kubernetes.client.dsl.ScalableResource;
 import io.fabric8.kubernetes.client.dsl.ServiceResource;
+import io.fabric8.kubernetes.client.dsl.TimeoutableScalable;
+import io.fabric8.kubernetes.client.dsl.internal.batch.v1.JobOperationsImpl;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -231,7 +233,9 @@ public class KubernetesAppDeployer extends AbstractKubernetesDeployer implements
 			if (scalableResource.get() == null) {
 				throw new IllegalStateException(String.format("App '%s' is not deployed", deploymentId));
 			}
-			scalableResource.scale(appScaleRequest.getCount(), true);
+			JobOperationsImpl jobOperations = new JobOperationsImpl(this.client);
+			TimeoutableScalable<?> timeoutableScalable = scalableResource.withTimeoutInMillis(jobOperations.getRequestConfig().getScaleTimeout());
+			timeoutableScalable.scale(appScaleRequest.getCount());
 		} catch (KubernetesClientException x) {
 			logger.debug("scale:exception:" + x, x);
 			throw new IllegalStateException(x);
