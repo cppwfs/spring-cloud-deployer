@@ -62,11 +62,10 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.fabric8.kubernetes.client.dsl.ScalableResource;
 import io.fabric8.kubernetes.client.dsl.ServiceResource;
 import io.fabric8.kubernetes.client.dsl.TimeoutableScalable;
-import io.fabric8.kubernetes.client.dsl.internal.BaseOperation;
+import io.fabric8.kubernetes.client.dsl.internal.apps.v1.DeploymentOperationsImpl;
 import io.fabric8.kubernetes.client.dsl.internal.apps.v1.StatefulSetOperationsImpl;
 import io.fabric8.kubernetes.client.dsl.internal.batch.v1.JobOperationsImpl;
 import io.fabric8.kubernetes.client.dsl.internal.core.v1.ServiceOperationsImpl;
-import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -279,8 +278,8 @@ public class KubernetesAppDeployer extends AbstractKubernetesDeployer implements
                 .withNewTemplate().withNewMetadata().withLabels(idMap).addToLabels(SPRING_MARKER_KEY, SPRING_MARKER_VALUE)
                 .addToLabels(deploymentLabels).withAnnotations(annotations).endMetadata().withSpec(podSpec).endTemplate()
                 .endSpec().build();
-
-		d = client.apps().deployments().create(d);
+		DeploymentOperationsImpl deploymentOperations = new DeploymentOperationsImpl(this.client);
+		d = client.apps().deployments().inNamespace(deploymentOperations.getNamespace()).resource(d).create();
         if (logger.isDebugEnabled()) {
             logger.debug("created:" + d.getFullResourceName() + ":" + d.getStatus());
         }
