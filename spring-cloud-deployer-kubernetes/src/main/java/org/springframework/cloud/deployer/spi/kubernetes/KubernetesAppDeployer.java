@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -54,13 +55,17 @@ import io.fabric8.kubernetes.api.model.apps.StatefulSetSpecBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
+import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.fabric8.kubernetes.client.dsl.ScalableResource;
 import io.fabric8.kubernetes.client.dsl.ServiceResource;
 import io.fabric8.kubernetes.client.dsl.TimeoutableScalable;
+import io.fabric8.kubernetes.client.dsl.internal.BaseOperation;
 import io.fabric8.kubernetes.client.dsl.internal.batch.v1.JobOperationsImpl;
+import io.fabric8.kubernetes.client.dsl.internal.core.v1.ServiceOperationsImpl;
+import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -274,7 +279,7 @@ public class KubernetesAppDeployer extends AbstractKubernetesDeployer implements
                 .addToLabels(deploymentLabels).withAnnotations(annotations).endMetadata().withSpec(podSpec).endTemplate()
                 .endSpec().build();
 
-        d = client.apps().deployments().create(d);
+		d = client.apps().deployments().create(d);
         if (logger.isDebugEnabled()) {
             logger.debug("created:" + d.getFullResourceName() + ":" + d.getStatus());
         }
@@ -434,11 +439,18 @@ public class KubernetesAppDeployer extends AbstractKubernetesDeployer implements
             spec.withSelector(idMap);
         }
 
-        Service service = client.services().createOrReplace(
-                new ServiceBuilder().withNewMetadata().withName(serviceName)
-                        .withLabels(idMap).withAnnotations(annotations).addToLabels(SPRING_MARKER_KEY, SPRING_MARKER_VALUE)
-                        .endMetadata().withSpec(spec.build()).build()
-        );
+		Service service = new ServiceBuilder().withNewMetadata().withName(serviceName)
+			.withLabels(idMap).withAnnotations(annotations).addToLabels(SPRING_MARKER_KEY, SPRING_MARKER_VALUE)
+			.endMetadata().withSpec(spec.build()).build();
+		ServiceOperationsImpl serviceOperations = new ServiceOperationsImpl(client);
+		service = client.services().inNamespace(serviceOperations.getNamespace()).resource(service).createOr(
+			new Function<NonDeletingOperation<Service>, Service>() {
+			@Override
+			public Service apply(NonDeletingOperation<Service> serviceNonDeletingOperation) {
+				return serviceNonDeletingOperation.update();
+
+			}
+		});
         if (logger.isDebugEnabled()) {
             logger.debug("created:" + service.getFullResourceName() + ":" + service.getStatus());
         }
