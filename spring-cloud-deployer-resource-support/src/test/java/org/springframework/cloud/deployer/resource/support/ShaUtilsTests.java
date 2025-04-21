@@ -20,8 +20,9 @@ import java.security.SecureRandom;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.junit.Test;
 
+import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -38,7 +39,7 @@ public class ShaUtilsTests {
 			for (int i = 0; i < 1000; i++) {
 				nodups.add(ShaUtils.sha1(randomString(20)));
 			}
-			assertEquals(nodups.size() == 1000, true);
+			assertThat(nodups.size()).isEqualTo(1000);
 		}
 	}
 
