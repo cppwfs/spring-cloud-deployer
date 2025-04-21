@@ -63,6 +63,7 @@ import io.fabric8.kubernetes.client.dsl.ScalableResource;
 import io.fabric8.kubernetes.client.dsl.ServiceResource;
 import io.fabric8.kubernetes.client.dsl.TimeoutableScalable;
 import io.fabric8.kubernetes.client.dsl.internal.BaseOperation;
+import io.fabric8.kubernetes.client.dsl.internal.apps.v1.StatefulSetOperationsImpl;
 import io.fabric8.kubernetes.client.dsl.internal.batch.v1.JobOperationsImpl;
 import io.fabric8.kubernetes.client.dsl.internal.core.v1.ServiceOperationsImpl;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
@@ -131,7 +132,7 @@ public class KubernetesAppDeployer extends AbstractKubernetesDeployer implements
             }
 
             String indexedProperty = request.getDeploymentProperties().get(INDEXED_PROPERTY_KEY);
-            boolean indexed = (indexedProperty != null) ? Boolean.valueOf(indexedProperty) : false;
+            boolean indexed = Boolean.parseBoolean(indexedProperty);
             logPossibleDownloadResourceMessage(request.getResource());
 
             createService(request);
@@ -349,8 +350,8 @@ public class KubernetesAppDeployer extends AbstractKubernetesDeployer implements
 
         StatefulSet statefulSet = new StatefulSetBuilder().withNewMetadata().withName(appId).withLabels(idMap)
                 .addToLabels(SPRING_MARKER_KEY, SPRING_MARKER_VALUE).addToLabels(deploymentLabels).endMetadata().withSpec(spec).build();
-
-        statefulSet = client.apps().statefulSets().create(statefulSet);
+		StatefulSetOperationsImpl statefulSetOperations = new StatefulSetOperationsImpl(this.client);
+        statefulSet = client.apps().statefulSets().inNamespace(statefulSetOperations.getNamespace()).resource(statefulSet).create();
         if (logger.isDebugEnabled()) {
             logger.debug("created:" + statefulSet.getFullResourceName() + ":" + statefulSet.getStatus());
         }
